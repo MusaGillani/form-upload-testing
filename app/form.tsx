@@ -1,20 +1,26 @@
 "use client";
 import { ChangeEvent, useRef, useState } from "react";
-import { object, type Input, array, string } from "valibot";
+import { object, type Input, array, string, instance } from "valibot";
+import { sendImages } from "./actions";
 
-const FormSchema = object({
-  images: array(object({ file: string(), previewUrl: string() })),
-});
+const FormSchema = array(
+  object({ fileName: string(), previewUrl: string(), file: instance(File) })
+);
 
-type FormValues = Input<typeof FormSchema>;
+export type FormValues = Input<typeof FormSchema>;
 
 const totalImages = 12;
 const emptyElements = Array(totalImages).fill("Image Preview");
 
+const postData = (selectedImages: FormValues) => {
+  const formData = new FormData();
+  selectedImages.forEach((img, index) => {
+    formData.append(`file$[${index + 1}]`, img.file);
+  });
+};
+
 const Form = () => {
-  const [selectedImages, setSelectedImages] = useState<FormValues["images"]>(
-    []
-  );
+  const [selectedImages, setSelectedImages] = useState<FormValues>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const removeImage = (index: number) => {
@@ -27,18 +33,20 @@ const Form = () => {
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { files } = e.target;
-    const state: FormValues["images"] = [];
+    const state: FormValues = [];
     if (files?.length !== 0 && files) {
       for (const file of files) {
         state.push({
-          file: file.name,
+          fileName: file.name,
           previewUrl: URL.createObjectURL(file),
+          file: file,
         });
       }
     }
     setSelectedImages((prev) => [...prev, ...state]);
   };
 
+  const sendImagesAction = sendImages.bind(null, postData(selectedImages));
   return (
     <>
       <input
@@ -81,7 +89,6 @@ const Form = () => {
           </div>
         ))}
         {emptyElements.map((value, index) => {
-          console.log(selectedImages.length);
           if (index < totalImages - selectedImages.length) {
             return (
               <div
@@ -94,6 +101,14 @@ const Form = () => {
           }
         })}
       </div>
+      <form action={sendImagesAction}>
+        <button
+          type="submit"
+          className="text-white bg-blue-700 hover:bg-blue-800  font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700"
+        >
+          Send Images
+        </button>
+      </form>
     </>
   );
 };
